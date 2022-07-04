@@ -20,7 +20,6 @@
  *
  */
 
-static int instantiate_device(int, int);
 static int read_raw_gyro(int, __u8);
 static int read_raw_mag(int, __u8);
 

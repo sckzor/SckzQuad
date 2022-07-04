@@ -17,6 +17,7 @@
 
 #include "gyro.h"
 #include "madgwick.h"
+#include "pwm.h"
 
 static const int ADAPTER_NUMBER = 1;
 static const int RT_THREAD_STACK_SIZE = PTHREAD_STACK_MIN * 4;
@@ -135,7 +136,7 @@ out:
 }
 
 void* rt(void* args) {
-	int gyro, mag;
+	int gyro, mag, pwm;
 	double elapsed;
 	struct gyro_state g_state;
 	struct vec3 m_state, dir;
@@ -148,6 +149,12 @@ void* rt(void* args) {
 
 	gyro = setup_gyro(ADAPTER_NUMBER);
 	mag = setup_mag(ADAPTER_NUMBER);
+	pwm = setup_pwm(ADAPTER_NUMBER);
+	
+	set_pwm_frequency(pwm, 60);
+	set_pwm(pwm, 0, 0, 150);
+	sleep(1);
+	set_pwm(pwm, 0, 0, 600);
 
 	gettimeofday(&st, NULL);
 
@@ -174,15 +181,6 @@ void* rt(void* args) {
 			pthread_mutex_unlock(init->trans_mutex);
 		}
 
-		/*
-		printf("Gyroscope reads X: %f Y: %f Z: %f \r\n", g_state.w.x, g_state.w.y, g_state.w.z);
-		printf("Accelerometer reads X: %f Y: %f Z: %f \r\n", g_state.a.x, g_state.a.y, g_state.a.z);
-		printf("Magnetometer reads X: %f Y: %f Z: %f \r\n", m_state.x, m_state.y, m_state.z);
-		printf("Elapsed time %f seconds\r\n", elapsed);
-		printf("Direction is Roll: %f Pitch: %f Yaw: %f \r\n", dir.x, dir.y, dir.z);
-		printf("--------------------------------------------------------------\r\n");
-		*/
-		
 		usleep(100); // Relinquish control to the main thread for a bit
 	}
 

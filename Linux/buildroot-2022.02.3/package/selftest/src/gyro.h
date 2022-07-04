@@ -24,5 +24,6 @@ int setup_gyro(int);
 int setup_mag(int);
 struct gyro_state get_gyro_state(int);
 struct vec3 get_mag_state(int);
+int instantiate_device(int, int);
 
 #endif
