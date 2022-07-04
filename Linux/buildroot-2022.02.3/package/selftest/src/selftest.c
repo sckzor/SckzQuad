@@ -151,10 +151,16 @@ void* rt(void* args) {
 	mag = setup_mag(ADAPTER_NUMBER);
 	pwm = setup_pwm(ADAPTER_NUMBER);
 	
+	printf("Setting PWM frequency\r\n");
 	set_pwm_frequency(pwm, 60);
-	set_pwm(pwm, 0, 0, 150);
-	sleep(1);
-	set_pwm(pwm, 0, 0, 600);
+	while(sem_trywait(init->kill_sig) != 0) {
+		printf("Setting PWM to 150\r\n");
+		set_pwm(pwm, 0, 0, 150);
+		sleep(1);
+		printf("Setting PWM to 600\r\n");
+		set_pwm(pwm, 0, 0, 600);
+		sleep(1);
+	}
 
 	gettimeofday(&st, NULL);
 
