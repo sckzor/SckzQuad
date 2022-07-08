@@ -59,6 +59,7 @@ def main():
     x = 0
     y = 0
     z = 0
+    throttle = 0
     elapsed = 0
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -93,11 +94,13 @@ def main():
             bytestr = s.recv(128)
             string = bytestr.decode("UTF-8")
             data = json.loads(string)
+            print(data)
 
             if data['type'] == "heading":
                 x = data['x']
                 y = data['y']
                 z = data['z']
+                throttle = data['throttle']
                 elapsed = data['elapsed']
 
         except Exception as e:
@@ -113,6 +116,8 @@ def main():
         glPopMatrix()
 
         drawText(-2, 1.5, f"It took {elapsed} seconds to poll the sensor")
+        drawText(-2, 1.25, f"The throttle is set to {throttle} us pulses ")
+        drawText(-2, 1.0, f"The angle was [{x}, {y}, {z}]")
 
         pygame.display.flip()
 

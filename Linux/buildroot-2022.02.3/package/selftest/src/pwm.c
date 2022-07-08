@@ -123,6 +123,17 @@ void set_pwm(int file, int channel, int on, int off) {
 	}
 }
 
+void set_pwm_us(int file, int channel, int us) {
+	int pulse_length;
+
+	pulse_length = (1000000 / 50) / 4096;
+	us /= pulse_length;
+
+	set_pwm(file, channel, 0, us);
+}
+
+
+
 /*
  * Set the PWM signal on all channels of the controller
  */

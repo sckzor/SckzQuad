@@ -25,6 +25,7 @@ static const int RT_THREAD_STACK_SIZE = PTHREAD_STACK_MIN * 4;
 struct rt_transfer {
 	struct vec3 dir;
 	double elapsed;
+	int throttle;
 };
 
 struct rt_init {
@@ -35,6 +36,7 @@ struct rt_init {
 
 pthread_t create_rt_thread(void*(*)(void*), struct rt_init*);
 void* rt(void* data);
+int get_pid(struct vec3, double elapsed);
 
 int main(void) {
 	int res, pulse, pwm;
@@ -50,17 +52,6 @@ int main(void) {
 	
 	printf("Quadcopter Hardware Test Program v0.0...\r\n");
 	
-	pwm = setup_pwm(ADAPTER_NUMBER);
-	
-	printf("Setting PWM frequency\r\n");
-	set_pwm_frequency(pwm, 50);
-
-	while(1) {
-		printf("Enter PWM value: ");
-		scanf("%d", &pulse);
-		set_pwm(pwm, 0, 0, pulse);
-	}
-
 	sem_init(&kill_sig, 0, 0);
 	pthread_mutex_init(&trans_mutex, NULL);
 
@@ -104,19 +95,20 @@ int main(void) {
 	client_size = sizeof(client_addr);
 	client_sock = accept(socket_desc, (struct sockaddr*)&client_addr, &client_size);
 
-	printf("Successfully accepted a client!\r\n");
+	printf("Successfully accepted a client with throttle data!\r\n");
 
 	while(1) {
 		//printf("Sending data over the network\r\n");
 		if(pthread_mutex_lock(&trans_mutex) == 0) {
-			sprintf(server_message, "{ \"type\": \"heading\", \"x\": %f, \"y\": %f, \"z\": %f, \"elapsed\": %f }\0",
-				transfer.dir.x, transfer.dir.y, transfer.dir.z, transfer.elapsed);
+			sprintf(server_message, 
+				"{ \"type\": \"heading\", \"x\": %f, \"y\": %f, \"z\": %f, \"throttle\": %d, \"elapsed\": %f }\0",
+				transfer.dir.x, transfer.dir.y, transfer.dir.z, transfer.throttle, transfer.elapsed);
 			pthread_mutex_unlock(&trans_mutex);
 		}
 
 		if(send(client_sock, server_message, strlen(server_message), 0) < 0) {
 			printf("Can't send\r\n");
-			// goto out;
+			goto out;
 		}
 
 		usleep(5000);
@@ -147,7 +139,7 @@ out:
 }
 
 void* rt(void* args) {
-	int gyro, mag, pwm, num, pulse;
+	int gyro, mag, pwm, num, pid, base_throttle, throttle;
 	double elapsed;
 	struct gyro_state g_state;
 	struct vec3 m_state, dir;
@@ -165,10 +157,10 @@ void* rt(void* args) {
 	printf("Setting PWM frequency\r\n");
 	set_pwm_frequency(pwm, 50);
 
-	while(1) {
-		scanf("Enter pwm value%d", &pulse);
-		set_pwm(pwm, 0, 0, pulse);
-	}
+	set_pwm(pwm, 0, 0, 0);
+
+	base_throttle = 1300; /* Set a base value for the throttle */
+	
 	gettimeofday(&st, NULL);
 
 	while(sem_trywait(init->kill_sig) != 0) {
@@ -178,6 +170,10 @@ void* rt(void* args) {
 		gettimeofday(&et, NULL);
 		elapsed = (et.tv_sec - st.tv_sec) + ((et.tv_usec - st.tv_usec) / 1000000.0f);
 		dir = get_angle(g_state.w, g_state.a, m_state, elapsed);
+		pid = get_pid(dir, elapsed);
+		throttle = base_throttle + pid;
+		// set_pwm_us(pwm, 0, throttle);
+		
 		gettimeofday(&st, NULL);
 
 		/* 
@@ -191,14 +187,59 @@ void* rt(void* args) {
 			// printf("Transmitting the data to the main thread over shared memory\r\n");
 			init->transfer->dir = dir;
 			init->transfer->elapsed = elapsed;
+			init->transfer->throttle = throttle;
 			pthread_mutex_unlock(init->trans_mutex);
 		}
 
 		usleep(100); // Relinquish control to the main thread for a bit
 	}
 
+	set_pwm(pwm, 0, 0, 0);
+
 	printf("Exiting the real time environment\r\n");
 }
+
+/*
+ * Based on tutorial here: https://electronoobs.com/eng_robotica_tut6_2.php
+ */
+int get_pid(struct vec3 dir, double elapsed) {
+	double error, p, i, d;
+	int pid;
+
+	static double prev_error = 0;
+
+	const static int kp = 3.55; 
+	const static int ki = 0.005;
+	const static int kd = 2.05;
+	const static double target_angle = 0;
+
+	error = dir.z - target_angle;
+	    
+	p = kp * error;
+
+	if(-3 < error < 3) {
+		  i = i + (ki * error);  
+	}
+
+	d = kd * ((error - prev_error) / elapsed);
+
+	pid = p + i + d;
+
+	printf("p %f, i %f, d %f, pid %d, error %f, prev_error %f\r\n", p, i, d, pid, error, prev_error);
+
+	if(pid < -1000) {
+		  pid = -1000;
+	}
+
+	if(pid > 1000) {
+		  pid = 1000;
+	}
+
+	prev_error = error;
+
+	return pid;
+}
+
 
 pthread_t create_rt_thread(void*(*fun)(void*), struct rt_init* init) {
 	/*

@@ -40,6 +40,7 @@ int setup_pwm(int);
 
 void set_pwm_frequency(int, double);
 void set_pwm(int, int, int, int);
+void set_pwm_us(int, int, int);
 void set_all_pwm(int, int, int);
 
 #endif
