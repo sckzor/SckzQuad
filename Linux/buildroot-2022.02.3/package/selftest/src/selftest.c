@@ -37,7 +37,7 @@ pthread_t create_rt_thread(void*(*)(void*), struct rt_init*);
 void* rt(void* data);
 
 int main(void) {
-	int res;
+	int res, pulse, pwm;
 	pthread_t rt_thread;
 	struct rt_init init;
 	sem_t kill_sig;
@@ -49,6 +49,17 @@ int main(void) {
 	char server_message[128];
 	
 	printf("Quadcopter Hardware Test Program v0.0...\r\n");
+	
+	pwm = setup_pwm(ADAPTER_NUMBER);
+	
+	printf("Setting PWM frequency\r\n");
+	set_pwm_frequency(pwm, 50);
+
+	while(1) {
+		printf("Enter PWM value: ");
+		scanf("%d", &pulse);
+		set_pwm(pwm, 0, 0, pulse);
+	}
 
 	sem_init(&kill_sig, 0, 0);
 	pthread_mutex_init(&trans_mutex, NULL);
@@ -136,7 +147,7 @@ out:
 }
 
 void* rt(void* args) {
-	int gyro, mag, pwm;
+	int gyro, mag, pwm, num, pulse;
 	double elapsed;
 	struct gyro_state g_state;
 	struct vec3 m_state, dir;
@@ -152,16 +163,12 @@ void* rt(void* args) {
 	pwm = setup_pwm(ADAPTER_NUMBER);
 	
 	printf("Setting PWM frequency\r\n");
-	set_pwm_frequency(pwm, 60);
-	while(sem_trywait(init->kill_sig) != 0) {
-		printf("Setting PWM to 150\r\n");
-		set_pwm(pwm, 0, 0, 150);
-		sleep(1);
-		printf("Setting PWM to 600\r\n");
-		set_pwm(pwm, 0, 0, 600);
-		sleep(1);
-	}
+	set_pwm_frequency(pwm, 50);
 
+	while(1) {
+		scanf("Enter pwm value%d", &pulse);
+		set_pwm(pwm, 0, 0, pulse);
+	}
 	gettimeofday(&st, NULL);
 
 	while(sem_trywait(init->kill_sig) != 0) {
