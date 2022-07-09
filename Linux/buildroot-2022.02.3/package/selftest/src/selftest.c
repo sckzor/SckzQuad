@@ -35,8 +35,8 @@ struct rt_init {
 };
 
 pthread_t create_rt_thread(void*(*)(void*), struct rt_init*);
-void* rt(void* data);
-int get_pid(struct vec3, double elapsed);
+void* rt(void*);
+int get_pid(struct vec3, double, double, double, double);
 
 int main(void) {
 	int res, pulse, pwm;
@@ -140,7 +140,8 @@ out:
 
 void* rt(void* args) {
 	int gyro, mag, pwm, num, pid, base_throttle, throttle;
-	double elapsed;
+	char input[15];
+	double elapsed, kp, ki, kd;
 	struct gyro_state g_state;
 	struct vec3 m_state, dir;
 	struct timeval st, et;
@@ -156,10 +157,39 @@ void* rt(void* args) {
 	
 	printf("Setting PWM frequency\r\n");
 	set_pwm_frequency(pwm, 50);
-
 	set_pwm(pwm, 0, 0, 0);
+	
+	printf("Type \"ARM\" in all capital letters when ready to arm the system: ");
+	scanf("%12[^\n]s", input);
+	if(strcmp(input,"ARM") != 0) {
+		printf("Invalid arm key, not arming!\r\n");
+		exit(1);
+	}
 
-	base_throttle = 1300; /* Set a base value for the throttle */
+	printf("System is armed!\r\n");
+	set_pwm(pwm, 0, 0, 205);
+
+	scanf("%c", input); /* Clear buffer of invalid /n character */
+
+	printf("Enter kP value: ");
+	scanf("%lf", &kp);
+	printf("Enter kI value: ");
+	scanf("%lf", &ki);
+	printf("Enter kD value: ");
+	scanf("%lf", &kd);
+	printf("Enter base throttle value: ");
+	scanf("%d", &base_throttle);
+
+	printf("PID is set to kP: %f kI: %f kD: %f Base throttle: %d\r\n", kp, ki, kd, base_throttle);
+
+	scanf("%c", input); /* Clear buffer of invalid /n character */
+
+	printf("Type \"THROTTLE UP\" in all capital letters when ready to start PID control of the system: ");
+	scanf("%12[^\n]s", input);
+	if(strcmp(input,"THROTTLE UP") != 0) {
+		printf("Invalid throttle key, not continuing!\r\n");
+		exit(1);
+	}
 	
 	gettimeofday(&st, NULL);
 
@@ -168,11 +198,12 @@ void* rt(void* args) {
 		m_state = get_mag_state(mag);
 
 		gettimeofday(&et, NULL);
+
 		elapsed = (et.tv_sec - st.tv_sec) + ((et.tv_usec - st.tv_usec) / 1000000.0f);
 		dir = get_angle(g_state.w, g_state.a, m_state, elapsed);
-		pid = get_pid(dir, elapsed);
+		pid = get_pid(dir, kp, ki, kd, elapsed);
 		throttle = base_throttle + pid;
-		// set_pwm_us(pwm, 0, throttle);
+		set_pwm_us(pwm, 0, throttle);
 		
 		gettimeofday(&st, NULL);
 
@@ -202,15 +233,12 @@ void* rt(void* args) {
 /*
  * Based on tutorial here: https://electronoobs.com/eng_robotica_tut6_2.php
  */
-int get_pid(struct vec3 dir, double elapsed) {
+int get_pid(struct vec3 dir, double kp, double ki, double kd, double elapsed) {
 	double error, p, i, d;
 	int pid;
 
 	static double prev_error = 0;
 
-	const static int kp = 3.55; 
-	const static int ki = 0.005;
-	const static int kd = 2.05;
 	const static double target_angle = 0;
 
 	error = dir.z - target_angle;
@@ -225,7 +253,7 @@ int get_pid(struct vec3 dir, double elapsed) {
 
 	pid = p + i + d;
 
-	printf("p %f, i %f, d %f, pid %d, error %f, prev_error %f\r\n", p, i, d, pid, error, prev_error);
+	// printf("p %f, i %f, d %f, pid %d, error %f, prev_error %f\r\n", p, i, d, pid, error, prev_error);
 
 	if(pid < -1000) {
 		  pid = -1000;

@@ -176,7 +176,7 @@ int read_raw_gyro(int file, __u8 address) {
 
 	if (res_high < 0 | res_low < 0) {
 		printf("There was an error reading the data at address 0x%x", address);
-		exit(1);
+		return 0; /* Fail safer (not safe tho lol) */
 	}
 
 	res = ((res_high << 8) | res_low);
