@@ -1,6 +1,6 @@
 .PHONY: clean
 
-selftest: selftest.c smbus.o i2c.o pwm.o gyro.o madgwick.o
+pidtest: pidtest.c smbus.o i2c.o pwm.o gyro.o madgwick.o
 	$(CC) -o '$@' $^
 
 madgwick.o: madgwick.c $(DEPS)
@@ -19,4 +19,4 @@ smbus.o: smbus.c $(DEPS)
 	$(CC) -c -o '$@' '$<'
 
 clean:
-	rm selftest smbus.o i2c.c pwm.c gyro.o madgwick.o
+	rm pidtest smbus.o i2c.c pwm.c gyro.o madgwick.o

@@ -1,6 +1,0 @@
-config BR2_PACKAGE_SELFTEST
-	bool "selftest"
-	help
-	  A simple package that allows the quadcopter to check it's hardware.
-
-	  https://www.sckz.org

@@ -1,0 +1,7 @@
+config BR2_PACKAGE_PIDTEST
+	bool "pidtest"
+	help
+	  A simple package that allows the quadcopter to perform a PID test on a PID testing jig such as the one at
+	  https://invidious.tiekoetter.com/watch?v=wF-CDtk_bKk.
+
+	  https://www.sckz.org

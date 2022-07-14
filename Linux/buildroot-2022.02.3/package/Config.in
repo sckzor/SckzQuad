@@ -2619,7 +2619,7 @@ menu "Text editors and viewers"
 endmenu
 
 menu "Sckzor's custom packages"
-	source "package/selftest/Config.in"
+	source "package/pidtest/Config.in"
 	source "package/cyclictest/Config.in"
 endmenu
 
